@@ -85,11 +85,11 @@ jobs:
 
       - name: Download SimpleSAMLphp release
         run: |
-          curl -L https://github.com/simplesamlphp/simplesamlphp/releases/download/v${{ steps.determine_ssp_version.outputs.SSP_VERSION }}/simplesamlphp-${{ steps.determine_ssp_version.outputs.SSP_VERSION }}-full.tar.gz --output simplesamlphp-${{ steps.determine_ssp_version.outputs.SSP_VERSION }}-full.tar.gz
+          curl -L https://github.com/simplesamlphp/simplesamlphp/releases/download/v${{ steps.determine_ssp_version.outputs.SSP_VERSION }}/simplesamlphp-${{ steps.determine_ssp_version.outputs.SSP_VERSION }}-full.tar.gz --output simplesamlphp-version-full.tar.gz
         working-directory: ${{ github.workspace }}
       - name: Extract composer.json
         run: |
-          tar -xzf simplesamlphp-${{ steps.determine_ssp_version.outputs.SSP_VERSION }}-full.tar.gz simplesamlphp-${{ steps.determine_ssp_version.outputs.SSP_VERSION }}/composer.json --strip-components=1
+          tar -xzf simplesamlphp-version-full.tar.gz simplesamlphp-${{ steps.determine_ssp_version.outputs.SSP_VERSION }}/composer.json --strip-components=1
         working-directory: ${{ github.workspace }}
       - name: Determine latest supported PHP version
         id: php_version
@@ -152,7 +152,6 @@ jobs:
           outputs: type=image,push=${{ github.event_name != 'pull_request' }}
           file: ./Dockerfile
           build-args: |
-            SSP_VERSION=${{ steps.determine_ssp_version.outputs.SSP_VERSION }}
             PHP_VERSION=${{ steps.php_version.outputs.php_version }}
       - name: Build and push nginx image
         id: build-and-push-nginx
@@ -166,8 +165,6 @@ jobs:
           labels: ${{ steps.meta-nginx.outputs.labels }}
           outputs: type=image,push=${{ github.event_name != 'pull_request' }}
           file: ./Dockerfile
-          build-args: |
-            SSP_VERSION=${{ steps.determine_ssp_version.outputs.SSP_VERSION }}
 
       # Sign the resulting Docker image digest except on PRs.
       # This will only write to the public Rekor transparency log when the Docker

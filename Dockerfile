@@ -1,9 +1,8 @@
-ARG SSP_VERSION
 ARG PHP_VERSION
 FROM alpine AS builder
 COPY --from=composer/composer:latest-bin /composer /usr/bin/composer
 RUN apk add --no-cache jq
-ADD simplesamlphp-${SSP_VERSION}-full.tar.gz /var/www/html
+ADD simplesamlphp-version-full.tar.gz /var/www/html
 WORKDIR /var/www/html
 RUN jq '.repositories += {"repo-name": {"type":"vcs","url":"https://github.com/smeetsee/simplesamlphp-module-openidprovider"}}' composer.json > composer.tmp.json && \
     mv composer.tmp.json composer.json
