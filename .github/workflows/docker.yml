@@ -151,8 +151,9 @@ jobs:
           labels: ${{ steps.meta-php.outputs.labels }}
           outputs: type=image,push=${{ github.event_name != 'pull_request' }}
           file: ./Dockerfile
-        env:
-          PHP_VERSION: ${{ steps.php_version.outputs.php_version }}
+          build-args: |
+            SSP_VERSION=${{ steps.determine_ssp_version.outputs.SSP_VERSION }}
+            PHP_VERSION=${{ steps.php_version.outputs.php_version }}
       - name: Build and push nginx image
         id: build-and-push-nginx
         uses: docker/build-push-action@v6
@@ -165,6 +166,8 @@ jobs:
           labels: ${{ steps.meta-nginx.outputs.labels }}
           outputs: type=image,push=${{ github.event_name != 'pull_request' }}
           file: ./Dockerfile
+          build-args: |
+            SSP_VERSION=${{ steps.determine_ssp_version.outputs.SSP_VERSION }}
 
       # Sign the resulting Docker image digest except on PRs.
       # This will only write to the public Rekor transparency log when the Docker
