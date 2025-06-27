@@ -76,13 +76,11 @@ jobs:
     
       - name: Download SimpleSAMLphp release
         run: |
-          export SSP_VERSION="${{ env.SSP_VERSION }}"
-          curl https://github.com/simplesamlphp/simplesamlphp/releases/download/v${SSP_VERSION}/simplesamlphp-${SSP_VERSION}-full.tar.gz --output simplesamlphp-${SSP_VERSION}-full.tar.gz
+          curl https://github.com/simplesamlphp/simplesamlphp/releases/download/v${{ env.SSP_VERSION }}/simplesamlphp-${{ env.SSP_VERSION }}-full.tar.gz --output simplesamlphp-${{ env.SSP_VERSION }}}-full.tar.gz
         working-directory: ${{ github.workspace }}
       - name: Extract composer.json
         run: |
-          export SSP_VERSION="${{ env.SSP_VERSION }}"
-          tar -xzf simplesamlphp-${SSP_VERSION}-full.tar.gz simplesamlphp-${SSP_VERSION}/composer.json --strip-components=1
+          tar -xzf simplesamlphp-${{ env.SSP_VERSION }}-full.tar.gz simplesamlphp-${{ env.SSP_VERSION }}/composer.json --strip-components=1
         working-directory: ${{ github.workspace }}
       - name: Determine latest supported PHP version
         id: php_version
