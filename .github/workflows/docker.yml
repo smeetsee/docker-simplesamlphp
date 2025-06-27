@@ -77,7 +77,7 @@ jobs:
     
       - name: Download SimpleSAMLphp release
         run: |
-          curl https://github.com/simplesamlphp/simplesamlphp/releases/download/v${{ steps.determine_ssp_version.outputs.SSP_VERSION }}/simplesamlphp-${{ steps.determine_ssp_version.outputs.SSP_VERSION }}-full.tar.gz --output simplesamlphp-${{ steps.determine_ssp_version.outputs.SSP_VERSION }}-full.tar.gz
+          curl -L https://github.com/simplesamlphp/simplesamlphp/releases/download/v${{ steps.determine_ssp_version.outputs.SSP_VERSION }}/simplesamlphp-${{ steps.determine_ssp_version.outputs.SSP_VERSION }}-full.tar.gz --output simplesamlphp-${{ steps.determine_ssp_version.outputs.SSP_VERSION }}-full.tar.gz
         working-directory: ${{ github.workspace }}
       - name: Extract composer.json
         run: |
