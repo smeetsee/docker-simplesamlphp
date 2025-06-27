@@ -20,5 +20,5 @@ EXPOSE 9000
 FROM nginx:alpine AS nginx
 COPY nginx.conf.template /nginx.conf.template
 COPY --from=builder /var/www/html /var/www/html
-CMD ["/bin/sh" , "-c" , "envsubst < /nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"]
+CMD ["/bin/sh" , "-c" , "envsubst '${SERVER_NAME}' < /nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"]
 EXPOSE 8080

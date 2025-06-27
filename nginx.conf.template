@@ -14,9 +14,9 @@ http {
     include       /etc/nginx/mime.types;
     default_type  application/octet-stream;
 
-    log_format  main  '$$remote_addr - $$remote_user [$$time_local] "$$request" '
-                      '$$status $$body_bytes_sent "$$http_referer" '
-                      '"$$http_user_agent" "$$http_x_forwarded_for"';
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
 
     access_log  /var/log/nginx/access.log  main;
 
@@ -40,7 +40,7 @@ http {
         add_header X-Frame-Options DENY;
 
         location = / {
-            return 301 https://$$server_name/module.php/openidProvider/user.php;
+            return 301 https://$server_name/module.php/openidProvider/user.php;
         }
 
         location ^~ {
@@ -49,9 +49,9 @@ http {
             location ~ \.php(/|$) {
                 fastcgi_pass     phpfpm:9000;
                 fastcgi_index    index.php;
-                fastcgi_param    SCRIPT_FILENAME  $$request_filename;
+                fastcgi_param    SCRIPT_FILENAME  $request_filename;
                 fastcgi_split_path_info ^(.+?\.php)(/.*)$;
-                fastcgi_param    PATH_INFO $$fastcgi_path_info;
+                fastcgi_param    PATH_INFO $fastcgi_path_info;
                 include          fastcgi_params;
             }
         }
