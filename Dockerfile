@@ -1,7 +1,7 @@
 ARG PHP_VERSION
 FROM php:${PHP_VERSION}-cli-alpine AS builder
 COPY --from=composer/composer:latest-bin /composer /usr/bin/composer
-RUN apk add --no-cache jq icu-dev libldap openldap-dev ldb-dev
+RUN apk add --no-cache jq icu-dev libldap openldap-dev samba-dev
 RUN docker-php-ext-install intl ldap gmp
 ADD simplesamlphp-version-full.tar.gz /var/www
 WORKDIR /var/www
@@ -12,7 +12,7 @@ RUN jq '.repositories += {"repo-name": {"type":"vcs","url":"https://github.com/s
 RUN composer require 'cirrusidentity/simplesamlphp-module-authoauth2:^4.1' 'simplesamlphp/simplesamlphp-module-openidprovider:dev-master'
 
 FROM php:${PHP_VERSION}-fpm-alpine AS php
-RUN apk add --no-cache icu-dev libldap openldap-dev ldb-dev
+RUN apk add --no-cache icu-dev libldap openldap-dev samba-dev
 RUN docker-php-ext-install intl ldap gmp
 COPY --from=builder /var/www/html /var/www/html
 EXPOSE 9000
