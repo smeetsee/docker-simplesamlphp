@@ -44,14 +44,15 @@ jobs:
         id: set_platform_pair
         run: |
           echo "platform_pair=${{ matrix.platform }}" | sed 's#/#-#g' >> $GITHUB_OUTPUT
-      - name: Prepare
+      - name: Determine SimpleSAMLphp version
+        id: determine_ssp_version
         run: |
           # Set SSP_VERSION from tag or fetch latest if not set
           if [ -z "${SSP_VERSION}" ]; then
             LATEST=$(curl -s https://api.github.com/repos/simplesamlphp/simplesamlphp/releases/latest | jq -r .tag_name | sed 's/^v//')
-            echo "SSP_VERSION=$LATEST" >> $GITHUB_ENV
+            echo "SSP_VERSION=$LATEST" >> $GITHUB_OUTPUT
           else
-            echo "SSP_VERSION=${SSP_VERSION#v}" >> $GITHUB_ENV
+            echo "SSP_VERSION=${SSP_VERSION#v}" >> $GITHUB_OUTPUT
           fi
         env:
           SSP_VERSION: ${{ env.SSP_VERSION }}
@@ -79,13 +80,13 @@ jobs:
           curl https://github.com/simplesamlphp/simplesamlphp/releases/download/v${SSP_VERSION}/simplesamlphp-${SSP_VERSION}-full.tar.gz --output simplesamlphp-${SSP_VERSION}-full.tar.gz
         working-directory: ${{ github.workspace }}
         env:
-            SSP_VERSION: ${{ env.SSP_VERSION }}
+          SSP_VERSION: ${{ steps.determine_ssp_version.outputs.SSP_VERSION }}
       - name: Extract composer.json
         run: |
           tar -xzf simplesamlphp-${SSP_VERSION}-full.tar.gz simplesamlphp-${SSP_VERSION}/composer.json --strip-components=1
         working-directory: ${{ github.workspace }}
         env:
-            SSP_VERSION: ${{ env.SSP_VERSION }}
+          SSP_VERSION: ${{ steps.determine_ssp_version.outputs.SSP_VERSION }}
       - name: Determine latest supported PHP version
         id: php_version
         run: |
