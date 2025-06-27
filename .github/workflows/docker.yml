@@ -24,7 +24,25 @@ env:
 
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      SSP_VERSION: ${{ steps.determine_ssp_version.outputs.SSP_VERSION }}
+    steps:
+      - name: Determine SimpleSAMLphp version
+        id: determine_ssp_version
+        run: |
+          if [ -z "${SSP_VERSION}" ]; then
+            LATEST=$(curl -s https://api.github.com/repos/simplesamlphp/simplesamlphp/releases/latest | jq -r .tag_name | sed 's/^v//')
+            echo "SSP_VERSION=$LATEST" >> $GITHUB_OUTPUT
+          else
+            echo "SSP_VERSION=${SSP_VERSION#v}" >> $GITHUB_OUTPUT
+          fi
+        env:
+          SSP_VERSION: ${{ env.SSP_VERSION }}
+
   docker:
+    needs: prepare
     runs-on: ${{ matrix.platform == 'linux/amd64' && 'ubuntu-latest' || 'ubuntu-24.04-arm' }}
     strategy:
       fail-fast: false
@@ -38,24 +56,14 @@ jobs:
       # This is used to complete the identity challenge
       # with sigstore/fulcio when running outside of PRs.
       id-token: write
+    env:
+      SSP_VERSION: ${{ needs.prepare.outputs.SSP_VERSION }}
 
     steps:
       - name: Set platform pair
         id: set_platform_pair
         run: |
           echo "platform_pair=${{ matrix.platform }}" | sed 's#/#-#g' >> $GITHUB_OUTPUT
-      - name: Determine SimpleSAMLphp version
-        id: determine_ssp_version
-        run: |
-          # Set SSP_VERSION from tag or fetch latest if not set
-          if [ -z "${SSP_VERSION}" ]; then
-            LATEST=$(curl -s https://api.github.com/repos/simplesamlphp/simplesamlphp/releases/latest | jq -r .tag_name | sed 's/^v//')
-            echo "SSP_VERSION=$LATEST" >> $GITHUB_OUTPUT
-          else
-            echo "SSP_VERSION=${SSP_VERSION#v}" >> $GITHUB_OUTPUT
-          fi
-        env:
-          SSP_VERSION: ${{ env.SSP_VERSION }}
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -85,11 +93,11 @@ jobs:
 
       - name: Download SimpleSAMLphp release
         run: |
-          curl -L https://github.com/simplesamlphp/simplesamlphp/releases/download/v${{ steps.determine_ssp_version.outputs.SSP_VERSION }}/simplesamlphp-${{ steps.determine_ssp_version.outputs.SSP_VERSION }}-full.tar.gz --output simplesamlphp-version-full.tar.gz
+          curl -L https://github.com/simplesamlphp/simplesamlphp/releases/download/v${{ env.SSP_VERSION }}/simplesamlphp-${{ env.SSP_VERSION }}-full.tar.gz --output simplesamlphp-version-full.tar.gz
         working-directory: ${{ github.workspace }}
       - name: Extract composer.json
         run: |
-          tar -xzf simplesamlphp-version-full.tar.gz simplesamlphp-${{ steps.determine_ssp_version.outputs.SSP_VERSION }}/composer.json --strip-components=1
+          tar -xzf simplesamlphp-version-full.tar.gz simplesamlphp-${{ env.SSP_VERSION }}/composer.json --strip-components=1
         working-directory: ${{ github.workspace }}
       - name: Determine latest supported PHP version
         id: php_version
@@ -187,10 +195,11 @@ jobs:
         run: echo "${{ steps.meta-nginx.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push-nginx.outputs.digest }} -y
 
   merge:
+    needs: [docker, prepare]
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'pull_request' }}
-    needs:
-      - docker
+    env:
+      SSP_VERSION: ${{ needs.prepare.outputs.SSP_VERSION }}
     steps:
       # Login against a Docker registry except on PR
       # https://github.com/docker/login-action
