@@ -19,6 +19,8 @@ env:
   REGISTRY: ghcr.io
   # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
+  # Set SSP_VERSION from tag if present, else fetch latest
+  SSP_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
 
 
 jobs:
@@ -38,10 +40,21 @@ jobs:
       id-token: write
 
     steps:
+      - name: Set platform pair
+        id: set_platform_pair
+        run: |
+          echo "platform_pair=${{ matrix.platform }}" | sed 's#/#-#g' >> $GITHUB_OUTPUT
       - name: Prepare
         run: |
-          platform=${{ matrix.platform }}
-          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+          # Set SSP_VERSION from tag or fetch latest if not set
+          if [ -z "${SSP_VERSION}" ]; then
+            LATEST=$(curl -s https://api.github.com/repos/simplesamlphp/simplesamlphp/releases/latest | jq -r .tag_name | sed 's/^v//')
+            echo "SSP_VERSION=$LATEST" >> $GITHUB_ENV
+          else
+            echo "SSP_VERSION=${SSP_VERSION#v}" >> $GITHUB_ENV
+          fi
+        env:
+          SSP_VERSION: ${{ env.SSP_VERSION }}
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -99,7 +112,7 @@ jobs:
           platforms: ${{ matrix.platform }}
           target: php
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php:${{ env.PLATFORM_PAIR }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php:v${{ env.SSP_VERSION }}-${{ steps.set_platform_pair.outputs.platform_pair }}
           labels: ${{ steps.meta-php.outputs.labels }}
           outputs: type=image,push=${{ github.event_name != 'pull_request' }}
           file: ./Dockerfile
@@ -111,7 +124,7 @@ jobs:
           platforms: ${{ matrix.platform }}
           target: nginx
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx:${{ env.PLATFORM_PAIR }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx:v${{ env.SSP_VERSION }}-${{ steps.set_platform_pair.outputs.platform_pair }}
           labels: ${{ steps.meta-nginx.outputs.labels }}
           outputs: type=image,push=${{ github.event_name != 'pull_request' }}
           file: ./Dockerfile
@@ -164,24 +177,54 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
-      - name: Create manifest list and push
+      - name: Determine if this is the latest release
+        id: is_latest
+        run: |
+          LATEST=$(curl -s https://api.github.com/repos/simplesamlphp/simplesamlphp/releases/latest | jq -r .tag_name | sed 's/^v//')
+          if [ "$LATEST" = "${SSP_VERSION}" ]; then
+            echo "is_latest=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_latest=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          SSP_VERSION: ${{ env.SSP_VERSION }}
+      - name: Create manifest list and push (php)
+        run: |
+          docker buildx imagetools create \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php:v${{ env.SSP_VERSION }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php:v${{ env.SSP_VERSION }}-linux-amd64 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php:v${{ env.SSP_VERSION }}-linux-arm64
+        env:
+          SSP_VERSION: ${{ env.SSP_VERSION }}
+      - name: Tag PHP image as latest
+        if: steps.is_latest.outputs.is_latest == 'true'
         run: |
           docker buildx imagetools create \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php:latest \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php:linux-amd64 \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php:linux-arm64
-
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php:v${{ env.SSP_VERSION }}-linux-amd64 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php:v${{ env.SSP_VERSION }}-linux-arm64
+        env:
+          SSP_VERSION: ${{ env.SSP_VERSION }}
       - name: Inspect PHP image
         run: |
-          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php:latest
-      
-      - name: Create manifest list and push
+          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php:v${{ env.SSP_VERSION }}
+      - name: Create manifest list and push (nginx)
+        run: |
+          docker buildx imagetools create \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx:v${{ env.SSP_VERSION }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx:v${{ env.SSP_VERSION }}-linux-amd64 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx:v${{ env.SSP_VERSION }}-linux-arm64
+        env:
+          SSP_VERSION: ${{ env.SSP_VERSION }}
+      - name: Tag nginx image as latest
+        if: steps.is_latest.outputs.is_latest == 'true'
         run: |
           docker buildx imagetools create \
             -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx:latest \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx:linux-amd64 \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx:linux-arm64
-
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx:v${{ env.SSP_VERSION }}-linux-amd64 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx:v${{ env.SSP_VERSION }}-linux-arm64
+        env:
+          SSP_VERSION: ${{ env.SSP_VERSION }}
       - name: Inspect nginx image
         run: |
-          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx:latest
+          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx:v${{ env.SSP_VERSION }}
