@@ -165,6 +165,8 @@ jobs:
           labels: ${{ steps.meta-nginx.outputs.labels }}
           outputs: type=image,push=${{ github.event_name != 'pull_request' }}
           file: ./Dockerfile
+          build-args: |
+            PHP_VERSION=${{ steps.php_version.outputs.php_version }}
 
       # Sign the resulting Docker image digest except on PRs.
       # This will only write to the public Rekor transparency log when the Docker
