@@ -1,7 +1,6 @@
 FROM alpine AS builder
 COPY --from=composer/composer:latest-bin /composer /usr/bin/composer
 RUN apk add --no-cache jq
-# TODO: download https://github.com/simplesamlphp/simplesamlphp/releases/download/v${SSP_VERSION}/simplesamlphp-${SSP_VERSION}-full.tar.gz in job
 ADD simplesamlphp-${SSP_VERSION}-full.tar.gz /var/www/html
 WORKDIR /var/www/html
 RUN jq '.repositories += {"repo-name": {"type":"vcs","url":"https://github.com/smeetsee/simplesamlphp-module-openidprovider"}}' composer.json > composer.tmp.json && \
