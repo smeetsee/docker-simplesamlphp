@@ -76,7 +76,30 @@ jobs:
     
       - name: Download SimpleSAMLphp release
         run: |
-            curl https://github.com/simplesamlphp/simplesamlphp/releases/download/v${SSP_VERSION}/simplesamlphp-${SSP_VERSION}-full.tar.gz --output simplesamlphp-${SSP_VERSION}-full.tar.gz
+          curl https://github.com/simplesamlphp/simplesamlphp/releases/download/v${SSP_VERSION}/simplesamlphp-${SSP_VERSION}-full.tar.gz --output simplesamlphp-${SSP_VERSION}-full.tar.gz
+        working-directory: ${{ github.workspace }}
+      - name: Extract composer.json
+        run: |
+          tar -xzf simplesamlphp-${SSP_VERSION}-full.tar.gz simplesamlphp-${SSP_VERSION}/composer.json --strip-components=1
+        working-directory: ${{ github.workspace }}
+      - name: Determine latest supported PHP version
+        id: php_version
+        run: |
+          PHP_CONSTRAINT=$(jq -r '.require.php' composer.json)
+          # Get all PHP tags from Docker Hub (paginated, up to 1000 tags)
+          TAGS=$(curl -s 'https://registry.hub.docker.com/v2/repositories/library/php/tags?page_size=1000' | jq -r '.results[].name')
+          # Filter for fpm-alpine tags and extract version numbers
+          VERSIONS=$(echo "$TAGS" | grep -E '^[0-9]+\.[0-9]+(\.[0-9]+)?-fpm-alpine$' | sed 's/-fpm-alpine//' | sort -V)
+          # Use composer/semver to find the highest matching version
+          MATCH=$(echo "$VERSIONS" | xargs -I{} composer semver --no-interaction --no-ansi --no-cache --require="php $PHP_CONSTRAINT" {} | tail -n1)
+          if [ -z "$MATCH" ]; then
+            # fallback to highest version if no match
+            PHP_VERSION=$(echo "$VERSIONS" | tail -n1)
+          else
+            PHP_VERSION=$MATCH
+          fi
+          echo "PHP_VERSION=$PHP_VERSION" >> $GITHUB_ENV
+          echo "php_version=$PHP_VERSION" >> $GITHUB_OUTPUT
         working-directory: ${{ github.workspace }}
 
       # Login against a Docker registry except on PR

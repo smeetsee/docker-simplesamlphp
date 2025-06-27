@@ -1,3 +1,4 @@
+ARG SSP_VERSION
 FROM alpine AS builder
 COPY --from=composer/composer:latest-bin /composer /usr/bin/composer
 RUN apk add --no-cache jq
@@ -7,6 +8,7 @@ RUN jq '.repositories += {"repo-name": {"type":"vcs","url":"https://github.com/s
     mv composer.tmp.json composer.json
 RUN composer require 'cirrusidentity/simplesamlphp-module-authoauth2:^4.1' 'simplesamlphp/simplesamlphp-module-openidprovider:dev-master'
 
+ARG PHP_VERSION
 FROM php:${PHP_VERSION}-fpm-alpine AS php
 RUN apk add --no-cache icu-dev
 RUN docker-php-ext-install intl
