@@ -1,5 +1,5 @@
 ARG PHP_VERSION
-FROM alpine AS builder
+FROM php:${PHP_VERSION}-cli-alpine AS builder
 COPY --from=composer/composer:latest-bin /composer /usr/bin/composer
 RUN apk add --no-cache jq
 ADD simplesamlphp-version-full.tar.gz /var/www
