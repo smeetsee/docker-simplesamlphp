@@ -26,6 +26,8 @@ env:
 jobs:
   prepare:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       SSP_VERSION: ${{ steps.determine_ssp_version.outputs.SSP_VERSION }}
     steps:
