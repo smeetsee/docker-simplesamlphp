@@ -27,17 +27,17 @@ http {
 
     #gzip  on;
     server {
-            listen 8080 default;
-            server_name ${SERVER_NAME};
+        listen 8080 default;
+        server_name ${SERVER_NAME};
 
-            index index.php;
+        index index.php;
 
-            # See https://hstspreload.org/ before uncommenting the line below.
-            # add_header Strict-Transport-Security "max-age=15768000; preload;";
-            add_header X-Content-Type-Options nosniff;
-            add_header X-XSS-Protection "1; mode=block";
-            add_header X-Robots-Tag none;
-            add_header X-Frame-Options DENY;
+        # See https://hstspreload.org/ before uncommenting the line below.
+        # add_header Strict-Transport-Security "max-age=15768000; preload;";
+        add_header X-Content-Type-Options nosniff;
+        add_header X-XSS-Protection "1; mode=block";
+        add_header X-Robots-Tag none;
+        add_header X-Frame-Options DENY;
 
         location = / {
             return 301 https://$server_name/module.php/openidProvider/user.php;
