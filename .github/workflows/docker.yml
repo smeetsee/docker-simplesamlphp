@@ -31,11 +31,13 @@ jobs:
     outputs:
       VERSION: ${{ steps.determine_version.outputs.VERSION }}
     steps:
-      - name: Determine SimpleSAMLphp version
+      - name: Determine Moodle version
         id: determine_version
         run: |
           if [ -z "${VERSION}" ]; then
-            LATEST=$(curl -s https://api.github.com/repos/simplesamlphp/simplesamlphp/releases/latest | jq -r .tag_name | sed 's/^v//')
+            # Fetch all tags, filter for stable releases, sort, and pick the highest
+            TAGS=$(curl -s "https://api.github.com/repos/moodle/moodle/tags?per_page=1000" | jq -r '.[].name' | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' | sed 's/^v//')
+            LATEST=$(echo "$TAGS" | sort -V | tail -n1)
             echo "VERSION=$LATEST" >> $GITHUB_OUTPUT
           else
             echo "VERSION=${VERSION#v}" >> $GITHUB_OUTPUT
@@ -85,44 +87,41 @@ jobs:
       - name: Setup Docker buildx
         uses: docker/setup-buildx-action@v3
     
-      - name: Ensure COMPOSER_HOME exists
-        run: mkdir -p "$HOME/.composer"
-
-      - name: Install composer/semver
-        run: composer global require composer/semver
-        env:
-          COMPOSER_HOME: $HOME/.composer
-
-      - name: Download SimpleSAMLphp release
+      - name: Parse Moodle major and minor version
+        id: parse_version
         run: |
-          curl -L https://github.com/simplesamlphp/simplesamlphp/releases/download/v${{ env.VERSION }}/simplesamlphp-${{ env.VERSION }}-full.tar.gz --output simplesamlphp-version-full.tar.gz
-        working-directory: ${{ github.workspace }}
-      - name: Extract composer.json
-        run: |
-          tar -xzf simplesamlphp-version-full.tar.gz simplesamlphp-${{ env.VERSION }}/composer.json --strip-components=1
-        working-directory: ${{ github.workspace }}
-      - name: Determine latest supported PHP version
+          VERSION="${{ env.VERSION }}"
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          MINOR=$(echo "$VERSION" | cut -d. -f2)
+          MINOR_PADDED=$(printf "%02d" "$MINOR")
+          echo "MAJOR=$MAJOR" >> $GITHUB_OUTPUT
+          echo "MINOR=$MINOR_PADDED" >> $GITHUB_OUTPUT
+      - name: Checkout Moodle repository
+        uses: actions/checkout@v3
+        with:
+          repository: moodle/moodle
+          ref: MOODLE_${{ steps.parse_version.outputs.MAJOR }}${{ steps.parse_version.outputs.MINOR }}_STABLE
+          path: moodle-src
+      - name: Determine required PHP version
         id: php_version
         run: |
-          export PATH="$PATH:$HOME/.composer/vendor/bin"
-          PHP_CONSTRAINT=$(jq -r '.require.php' composer.json)
-          # Get all PHP tags from Docker Hub (paginated, up to 1000 tags)
-          TAGS=$(curl -s 'https://registry.hub.docker.com/v2/repositories/library/php/tags?page_size=1000' | jq -r '.results[].name')
-          # Filter for fpm-alpine tags and extract version numbers
-          VERSIONS=$(echo "$TAGS" | grep -E '^[0-9]+\.[0-9]+(\.[0-9]+)?-fpm-alpine$' | sed 's/-fpm-alpine//' | sort -V)
-          # Use composer/semver to find the highest matching version
-          MATCH=$(echo "$VERSIONS" | xargs -I{} semver "$PHP_CONSTRAINT" {} | tail -n1)
-          if [ -z "$MATCH" ]; then
-            # fallback to highest version if no match
-            PHP_VERSION=$(echo "$VERSIONS" | tail -n1)
-          else
-            PHP_VERSION=$MATCH
+          # Parse minimum PHP version from moodle-src/lib/phpminimumversionlib.php
+          MIN_PHP=$(grep "minimumversion" moodle-src/lib/phpminimumversionlib.php | head -1 | sed -E \
+            -e "s/.*'(.*)'.*/\1/")
+          echo "Minimum required PHP version: $MIN_PHP"
+          # Extract the major.minor part
+          PHP_SERIES=$(echo "$MIN_PHP" | awk -F. '{print $1 "." $2}')
+          # Fetch all PHP versions from Docker Hub
+          PHP_TAGS=$(curl -s 'https://registry.hub.docker.com/v2/repositories/library/php/tags?page_size=1000' | jq -r '.results[].name' | grep -E "^$PHP_SERIES\\.[0-9]+-fpm-alpine$" | sed 's/-fpm-alpine//')
+          # Select the highest bugfix version in the required series
+          SELECTED_PHP=$(echo "$PHP_TAGS" | sort -V | tail -n1)
+          if [ -z "$SELECTED_PHP" ]; then
+            # Fallback: use the minimum required
+            SELECTED_PHP="$MIN_PHP"
           fi
-          echo "PHP_VERSION=$PHP_VERSION" >> $GITHUB_ENV
-          echo "php_version=$PHP_VERSION" >> $GITHUB_OUTPUT
-        working-directory: ${{ github.workspace }}
-        env:
-          COMPOSER_HOME: $HOME/.composer
+          echo "Selected PHP version: $SELECTED_PHP"
+          echo "PHP_VERSION=$SELECTED_PHP" >> $GITHUB_OUTPUT
+          echo "PHP_VERSION=$SELECTED_PHP" >> $GITHUB_ENV
 
       # Login against a Docker registry except on PR
       # https://github.com/docker/login-action
@@ -153,7 +152,7 @@ jobs:
         id: build-and-push-php
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./moodle-src
           platforms: ${{ matrix.platform }}
           target: php
           tags: |
@@ -167,7 +166,7 @@ jobs:
         id: build-and-push-nginx
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./moodle-src
           platforms: ${{ matrix.platform }}
           target: nginx
           tags: |
@@ -216,11 +215,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Determine if this is the latest release
+      - name: Determine if this is the latest version
         id: is_latest
         run: |
-          LATEST=$(curl -s https://api.github.com/repos/simplesamlphp/simplesamlphp/releases/latest | jq -r .tag_name | sed 's/^v//')
-          if [ "$LATEST" = "${VERSION}" ]; then
+          VERSION="${{ env.VERSION }}"
+          TAGS=$(curl -s "https://api.github.com/repos/moodle/moodle/tags?per_page=1000" | jq -r '.[].name' | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' | sed 's/^v//')
+          LATEST=$(echo "$TAGS" | sort -V | tail -n1)
+          if [ "$LATEST" = "$VERSION" ]; then
             echo "is_latest=true" >> $GITHUB_OUTPUT
           else
             echo "is_latest=false" >> $GITHUB_OUTPUT
