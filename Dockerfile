@@ -30,14 +30,9 @@ FROM phpfpm AS php-adfsmfa
 #         }
 # with
 #         if ($_REQUEST['Context'] !== null) {
-#            $state['adfsmfa:context'] = $_REQUEST['Context'];
+#            $state['saml:RelayState'] = $_REQUEST['Context'];
 #         }
-RUN sed -i 's/if ($username !== null) {\n\s*\$state\['core:username'\] = \$username;\n\s*}/if ($_REQUEST['Context'] !== null) {\n    $state['adfsmfa:context'] = $_REQUEST['Context'];\n}/' /var/www/html/modules/saml/src/IdP/SAML2.php
-# In the file /var/www/html/modules/saml/src/IdP/SAML2.php, replace the block
-#         $relayState = $state['saml:RelayState'];
-# with
-#         $relayState = $state['adfsmfa:context'];
-RUN sed -i "s/\$relayState = \$state\['saml:RelayState'\];/\$relayState = \$state['adfsmfa:context'];/" /var/www/html/modules/saml/src/IdP/SAML2.php
+RUN sed -i 's/if ($username !== null) {\n\s*\$state\['core:username'\] = \$username;\n\s*}/if ($_REQUEST['Context'] !== null) {\n    $state['saml:RelayState'] = $_REQUEST['Context'];\n}/' /var/www/html/modules/saml/src/IdP/SAML2.php
 # In the file /var/www/html/vendor/simplesamlphp/saml2/src/Binding/HTTPPost.php, replace the block
 #         if ($relayState !== null) {
 #             $post['RelayState'] = $relayState;
