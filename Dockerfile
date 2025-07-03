@@ -11,7 +11,7 @@ RUN jq '.repositories += {"repo-name": {"type":"vcs","url":"https://github.com/s
     mv composer.tmp.json composer.json
 RUN composer require 'cirrusidentity/simplesamlphp-module-authoauth2:^4.1' 'simplesamlphp/simplesamlphp-module-openidprovider:dev-master'
 
-FROM php:${PHP_VERSION}-fpm-alpine AS php
+FROM php:${PHP_VERSION}-fpm-alpine AS phpfpm
 RUN apk add --no-cache icu-dev libldap openldap-dev samba-dev gmp-dev
 RUN docker-php-ext-install intl ldap gmp
 COPY --from=builder /var/www/html /var/www/html
@@ -22,3 +22,28 @@ COPY nginx.conf.template /nginx.conf.template
 COPY --from=builder /var/www/html /var/www/html
 CMD ["/bin/sh" , "-c" , "envsubst '${SERVER_NAME}' < /nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"]
 EXPOSE 8080
+
+FROM phpfpm AS php-adfsmfa
+# In the file /var/www/html/modules/saml/src/IdP/SAML2.php, replace the block
+#         if ($username !== null) {
+#            $state['core:username'] = $username;
+#         }
+# with
+#         if ($_REQUEST['Context'] !== null) {
+#            $state['adfsmfa:context'] = $_REQUEST['Context'];
+#         }
+RUN sed -i 's/if ($username !== null) {\n\s*\$state\['core:username'\] = \$username;\n\s*}/if ($_REQUEST['Context'] !== null) {\n    $state['adfsmfa:context'] = $_REQUEST['Context'];\n}/' /var/www/html/modules/saml/src/IdP/SAML2.php
+# In the file /var/www/html/modules/saml/src/IdP/SAML2.php, replace the block
+#         $relayState = $state['saml:RelayState'];
+# with
+#         $relayState = $state['adfsmfa:context'];
+RUN sed -i "s/\$relayState = \$state\['saml:RelayState'\];/\$relayState = \$state['adfsmfa:context'];/" /var/www/html/modules/saml/src/IdP/SAML2.php
+# In the file /var/www/html/vendor/simplesamlphp/saml2/src/Binding/HTTPPost.php, replace the block
+#         if ($relayState !== null) {
+#             $post['RelayState'] = $relayState;
+#         }
+# with
+#         if ($relayState !== null) {
+#             $post['Context'] = $relayState;
+#         }
+RUN sed -i "s/if (\$relayState !== null) {\\n    \$post\['RelayState'\] = \$relayState;\\n}/if (\$relayState !== null) {\n    $post['Context'] = $relayState;\n}/" /var/www/html/vendor/simplesamlphp/saml2/src/Binding/HTTPPost.php

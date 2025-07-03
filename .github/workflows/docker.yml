@@ -141,6 +141,11 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php
+      - name: Extract Docker metadata (PHP image, modified for ADFS MFA extension)
+        id: meta-php-adfsmfa
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php-adfsmfa
       - name: Extract Docker metadata (nginx image)
         id: meta-nginx
         uses: docker/metadata-action@v5
@@ -155,10 +160,24 @@ jobs:
         with:
           context: .
           platforms: ${{ matrix.platform }}
-          target: php
+          target: phpfpm
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php:v${{ env.VERSION }}-${{ steps.set_platform_pair.outputs.platform_pair }}
           labels: ${{ steps.meta-php.outputs.labels }}
+          outputs: type=image,push=${{ github.event_name != 'pull_request' }}
+          file: ./Dockerfile
+          build-args: |
+            PHP_VERSION=${{ steps.php_version.outputs.php_version }}
+      - name: Build and push PHP image (modified for ADFS MFA extension)
+        id: build-and-push-php-adfsmfa
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          target: php-adfsmfa
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php:v${{ env.VERSION }}-${{ steps.set_platform_pair.outputs.platform_pair }}
+          labels: ${{ steps.meta-php-adfsmfa.outputs.labels }}
           outputs: type=image,push=${{ github.event_name != 'pull_request' }}
           file: ./Dockerfile
           build-args: |
@@ -190,6 +209,13 @@ jobs:
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
         run: echo "${{ steps.meta-php.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push-php.outputs.digest }} -y
+      - name: Sign the published PHP image (modified for ADFS MFA extension)
+        if: ${{ github.event_name != 'pull_request' }}
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        # This step uses the identity token to provision an ephemeral certificate
+        # against the sigstore community Fulcio instance.
+        run: echo "${{ steps.meta-php-adfsmfa.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push-php-adfsmfa.outputs.digest }} -y
       - name: Sign the published nginx image
         if: ${{ github.event_name != 'pull_request' }}
         env:
@@ -247,6 +273,26 @@ jobs:
       - name: Inspect PHP image
         run: |
           docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php:v${{ env.VERSION }}
+      - name: Create manifest list and push (php, modified for ADFS MFA extension)
+        run: |
+          docker buildx imagetools create \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php-adfsmfa:v${{ env.VERSION }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php-adfsmfa:v${{ env.VERSION }}-linux-amd64 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php-adfsmfa:v${{ env.VERSION }}-linux-arm64
+        env:
+          VERSION: ${{ env.VERSION }}
+      - name: Tag PHP image (modified for ADFS MFA extension) as latest
+        if: steps.is_latest.outputs.is_latest == 'true'
+        run: |
+          docker buildx imagetools create \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php-adfsmfa:latest \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php-adfsmfa:v${{ env.VERSION }}-linux-amd64 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php-adfsmfa:v${{ env.VERSION }}-linux-arm64
+        env:
+          VERSION: ${{ env.VERSION }}
+      - name: Inspect PHP image (modified for ADFS MFA extension)
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-php-adfsmfa:v${{ env.VERSION }}
       - name: Create manifest list and push (nginx)
         run: |
           docker buildx imagetools create \
