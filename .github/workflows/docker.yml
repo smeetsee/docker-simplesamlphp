@@ -102,8 +102,8 @@ jobs:
           MIN_VERSION=$(echo "$PHP_CONSTRAINT" | grep -Eo '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -n1)
           # Reduce to major.minor (e.g., 8.2 from 8.2.23 or 8.2)
           PHP_VERSION=$(echo "$MIN_VERSION" | awk -F. '{print $1 "." $2}')
-          # Always use at least 8.4
-          MINIMUM=8.4
+          # Always use at least 8.3
+          MINIMUM=8.3
           version_ge() { awk -v v1="$1" -v v2="$2" 'BEGIN { split(v1,a,"."); split(v2,b,"."); exit (a[1]>b[1] || (a[1]==b[1] && a[2]>=b[2])) ? 0 : 1 }'; }
           if ! version_ge "$PHP_VERSION" "$MINIMUM"; then
             PHP_VERSION="$MINIMUM"
