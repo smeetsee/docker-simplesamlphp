@@ -33,7 +33,8 @@ FROM phpfpm AS php-adfsmfa
 #            $state['saml:RelayState'] = $_REQUEST['Context'];
 #         }
 RUN awk 'index($0, "if (\$username !== null) {") {print "if (\$_REQUEST[\"Context\"] !== null) {"; getline; print "    \$state[\"saml:RelayState\"] = \$_REQUEST[\"Context\"];"; next} {print}' /var/www/html/modules/saml/src/IdP/SAML2.php > /tmp/SAML2.php && mv /tmp/SAML2.php /var/www/html/modules/saml/src/IdP/SAML2.php
-# In the file /var/www/html/vendor/simplesamlphp/saml2/src/Binding/HTTPPost.php, replace the block
+# In the files /var/www/html/vendor/simplesamlphp/saml2/src/Binding/HTTPPost.php,      and
+#              /var/www/html/vendor/simplesamlphp/saml2-legacy/src/SAML2/HTTPPost.php, replace the block
 #         if ($relayState !== null) {
 #             $post['RelayState'] = $relayState;
 #         }
@@ -42,3 +43,4 @@ RUN awk 'index($0, "if (\$username !== null) {") {print "if (\$_REQUEST[\"Contex
 #             $post['Context'] = $relayState;
 #         }
 RUN awk 'index($0, "if (\$relayState !== null) {") {print; getline; print "    \$post[\"Context\"] = \$relayState;"; next} {print}' /var/www/html/vendor/simplesamlphp/saml2/src/Binding/HTTPPost.php > /tmp/HTTPPost.php && mv /tmp/HTTPPost.php /var/www/html/vendor/simplesamlphp/saml2/src/Binding/HTTPPost.php
+RUN awk 'index($0, "if (\$relayState !== null) {") {print; getline; print "    \$post[\"Context\"] = \$relayState;"; next} {print}' /var/www/html/vendor/simplesamlphp/saml2-legacy/src/SAML2/HTTPPost.php > /tmp/HTTPPost.php && mv /tmp/HTTPPost.php /var/www/html/vendor/simplesamlphp/saml2-legacy/src/SAML2/HTTPPost.php
