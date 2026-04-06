@@ -6,7 +6,7 @@ use SimpleSAML\Error\Error;
 
 class ProxySP extends SP
 {
-    public function authenticate(array &$state): void
+    public function authenticate(array &$state): never
     {
         $session = \SimpleSAML\Session::getSessionFromRequest();
         // Capture ADFS MFA parameters on incoming AuthnRequest
