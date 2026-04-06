@@ -9,7 +9,7 @@ RUN rm -rf html && mv simplesamlphp-* html
 WORKDIR /var/www/html
 RUN jq '.repositories += {"repo-name": {"type":"vcs","url":"https://github.com/smeetsee/simplesamlphp-module-openidprovider"}}' composer.json > composer.tmp.json && \
     mv composer.tmp.json composer.json
-RUN composer require 'cirrusidentity/simplesamlphp-module-authoauth2:^4.1' 'simplesamlphp/simplesamlphp-module-openidprovider:dev-master'
+RUN composer require 'simplesamlphp/simplesamlphp-module-openidprovider:dev-master'
 
 FROM php:${PHP_VERSION}-fpm-alpine AS phpfpm
 RUN apk add --no-cache icu-dev libldap openldap-dev samba-dev gmp-dev
