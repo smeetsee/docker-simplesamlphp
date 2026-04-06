@@ -2,7 +2,7 @@ ARG PHP_VERSION
 FROM php:${PHP_VERSION}-cli-alpine AS builder
 COPY --from=composer/composer:latest-bin /composer /usr/bin/composer
 RUN apk add --no-cache jq icu-dev libldap openldap-dev samba-dev gmp-dev
-RUN docker-php-ext-install intl ldap gmp
+RUN docker-php-ext-install intl ldap gmp bcmath
 ADD simplesamlphp-version-full.tar.gz /var/www
 WORKDIR /var/www
 RUN rm -rf html && mv simplesamlphp-* html
@@ -13,7 +13,7 @@ RUN composer require 'cirrusidentity/simplesamlphp-module-authoauth2:^4.1' 'simp
 
 FROM php:${PHP_VERSION}-fpm-alpine AS phpfpm
 RUN apk add --no-cache icu-dev libldap openldap-dev samba-dev gmp-dev
-RUN docker-php-ext-install intl ldap gmp
+RUN docker-php-ext-install intl ldap gmp bcmath
 COPY --from=builder /var/www/html /var/www/html
 EXPOSE 9000
 
