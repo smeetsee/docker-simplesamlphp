@@ -24,6 +24,7 @@ CMD ["/bin/sh" , "-c" , "envsubst '${SERVER_NAME}' < /nginx.conf.template > /etc
 EXPOSE 8080
 
 FROM phpfpm AS php-adfsmfa
+ADD adfsmfaTheme /var/www/html/modules/adfsmfaTheme
 # In the file /var/www/html/modules/saml/src/IdP/SAML2.php, replace the block
 #         if ($username !== null) {
 #            $state['core:username'] = $username;
