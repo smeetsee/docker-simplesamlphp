@@ -20,6 +20,7 @@ EXPOSE 9000
 FROM nginx:alpine AS nginx
 COPY nginx.conf.template /nginx.conf.template
 COPY --from=builder /var/www/html /var/www/html
+ENV FASTCGI_PASS=phpfpm:9000
 CMD ["/bin/sh" , "-c" , "envsubst '${SERVER_NAME}' < /nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"]
 EXPOSE 8080
 

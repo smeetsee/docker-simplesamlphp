@@ -47,7 +47,7 @@ http {
             alias /var/www/html/public;
 
             location ~ \.php(/|$) {
-                fastcgi_pass     ${FASTCGI_PASS:-phpfpm:9000};
+                fastcgi_pass     ${FASTCGI_PASS};
                 fastcgi_index    index.php;
                 fastcgi_param    SCRIPT_FILENAME  $request_filename;
                 fastcgi_split_path_info ^(.+?\.php)(/.*)$;
