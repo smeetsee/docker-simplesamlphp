@@ -26,8 +26,7 @@ env:
 jobs:
   prepare:
     runs-on: ubuntu-slim
-    permissions:
-      contents: read
+    permissions: {}
     outputs:
       VERSION: ${{ steps.determine_version.outputs.VERSION }}
     steps:
